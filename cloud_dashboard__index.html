@@ -1,0 +1,1735 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Smart Medicine Storage — Cloud Dashboard</title>
+  <meta name="description" content="Remote cloud dashboard for Smart Medicine Storage IoT system">
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    html {
+      color-scheme: dark
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box
+    }
+
+    :root {
+      --bg: #070a10;
+      --surface: #0d1117;
+      --card: #13181f;
+      --card2: #0f1419;
+      --border: #1e2532;
+      --border2: #252d3a;
+      --text: #dde2ed;
+      --dim: #697180;
+      --accent: #7c6df8;
+      --accent2: #a99afa;
+      --accent3: #56b4d3;
+      --safe: #10b981;
+      --warn: #f59e0b;
+      --crit: #ef4444;
+      --info: #3b82f6;
+      --grad: linear-gradient(135deg, #7c6df8, #a99afa 50%, #56b4d3);
+      --r: 16px;
+      --sh: 0 4px 32px rgba(0, 0, 0, .5);
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      line-height: 1.5;
+      min-height: 100vh;
+      padding-bottom: 60px
+    }
+
+    /* ── Navbar ── */
+    .navbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(7, 10, 16, .92);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(16px)
+    }
+
+    .nav-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px
+    }
+
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: var(--grad);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0
+    }
+
+    .brand-name {
+      font-size: 1rem;
+      font-weight: 700;
+      background: var(--grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text
+    }
+
+    .brand-sub {
+      font-size: .68rem;
+      color: var(--dim);
+      margin-top: 1px
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 10px
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: .72rem;
+      font-weight: 600;
+      border: 1px solid;
+      white-space: nowrap
+    }
+
+    .pill-live {
+      background: rgba(16, 185, 129, .08);
+      color: var(--safe);
+      border-color: rgba(16, 185, 129, .2)
+    }
+
+    .pill-offline {
+      background: rgba(239, 68, 68, .08);
+      color: var(--crit);
+      border-color: rgba(239, 68, 68, .2)
+    }
+
+    .pill-wait {
+      background: rgba(124, 109, 248, .08);
+      color: var(--accent2);
+      border-color: rgba(124, 109, 248, .2)
+    }
+
+    .sdot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      animation: pulse 2s infinite;
+      flex-shrink: 0
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: .3
+      }
+    }
+
+    /* Tabs */
+    .nav-tabs {
+      display: flex;
+      gap: 2px;
+      padding: 0 16px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch
+    }
+
+    .nav-tabs::-webkit-scrollbar { display: none }
+
+    /* ── Device Switcher Bar ── */
+    .device-bar {
+      background: rgba(7,10,16,.85);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow-x: auto;
+    }
+    .device-bar::-webkit-scrollbar { display: none }
+    .device-bar-label {
+      font-size: .68rem;
+      color: var(--dim);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .device-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-size: .75rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid var(--border2);
+      background: var(--card2);
+      color: var(--dim);
+      transition: all .2s;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .device-chip:hover { border-color: var(--accent); color: var(--accent2); }
+    .device-chip.active { background: rgba(124,109,248,.12); border-color: var(--accent); color: var(--accent2); }
+    .device-chip .chip-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--dim); flex-shrink: 0; }
+    .device-chip.live .chip-dot { background: var(--safe); animation: pulse 2s infinite; }
+    .device-chip.warn .chip-dot { background: var(--crit); }
+
+    .tab-btn {
+      flex-shrink: 0;
+      padding: 10px 18px;
+      font-size: .8rem;
+      font-weight: 600;
+      color: var(--dim);
+      background: none;
+      border: none;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all .2s;
+      letter-spacing: .2px;
+      font-family: inherit
+    }
+
+    .tab-btn:hover {
+      color: var(--text)
+    }
+
+    .tab-btn.active {
+      color: var(--accent2);
+      border-bottom-color: var(--accent)
+    }
+
+    /* Layout */
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 20px 16px
+    }
+
+    .page {
+      display: none
+    }
+
+    .page.active {
+      display: block
+    }
+
+    .grid {
+      display: grid;
+      gap: 16px
+    }
+
+    .grid-2 {
+      grid-template-columns: 1fr 1fr
+    }
+
+    .grid-3 {
+      grid-template-columns: repeat(3, 1fr)
+    }
+
+    @media(max-width:768px) {
+
+      .grid-2,
+      .grid-3 {
+        grid-template-columns: 1fr
+      }
+    }
+
+    @media(min-width:769px) and (max-width:1024px) {
+      .grid-3 {
+        grid-template-columns: 1fr 1fr
+      }
+    }
+
+    .full {
+      grid-column: 1/-1
+    }
+
+    /* Cards */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 20px;
+      box-shadow: var(--sh)
+    }
+
+    .card-title {
+      font-size: .72rem;
+      text-transform: uppercase;
+      letter-spacing: 1.8px;
+      color: var(--dim);
+      font-weight: 600;
+      margin-bottom: 14px
+    }
+
+    /* Alert */
+    .alert-box {
+      display: none;
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 14px;
+      font-weight: 600;
+      font-size: .84rem;
+      border: 1px solid;
+      animation: aPulse 2s ease-in-out infinite;
+      align-items: center;
+      gap: 10px
+    }
+
+    .alert-box.show {
+      display: flex
+    }
+
+    .a-temp {
+      background: rgba(239, 68, 68, .08);
+      border-color: rgba(239, 68, 68, .25);
+      color: #fca5a5
+    }
+
+    .a-hum {
+      background: rgba(59, 130, 246, .08);
+      border-color: rgba(59, 130, 246, .25);
+      color: #93c5fd
+    }
+
+    .a-off {
+      background: rgba(107, 114, 128, .08);
+      border-color: rgba(107, 114, 128, .25);
+      color: #9ca3af
+    }
+
+    @keyframes aPulse {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: .7
+      }
+    }
+
+    /* Metric cards */
+    .metric-val {
+      font-size: 3rem;
+      font-weight: 800;
+      letter-spacing: -2px;
+      line-height: 1;
+      transition: color .5s
+    }
+
+    .metric-unit {
+      font-size: 1rem;
+      color: var(--dim);
+      font-weight: 400
+    }
+
+    .metric-sub {
+      font-size: .72rem;
+      color: var(--dim);
+      margin-top: 4px
+    }
+
+    .mbadge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 10px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: .7rem;
+      font-weight: 700;
+      letter-spacing: .8px;
+      text-transform: uppercase
+    }
+
+    .b-safe {
+      background: rgba(16, 185, 129, .1);
+      color: var(--safe);
+      border: 1px solid rgba(16, 185, 129, .2)
+    }
+
+    .b-warn {
+      background: rgba(245, 158, 11, .1);
+      color: var(--warn);
+      border: 1px solid rgba(245, 158, 11, .2)
+    }
+
+    .b-crit {
+      background: rgba(239, 68, 68, .1);
+      color: var(--crit);
+      border: 1px solid rgba(239, 68, 68, .2)
+    }
+
+    .b-off {
+      background: rgba(107, 114, 128, .1);
+      color: #6b7280;
+      border: 1px solid rgba(107, 114, 128, .2)
+    }
+
+    /* Stats */
+    .stats-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 14px
+    }
+
+    .stat-box {
+      flex: 1;
+      padding: 10px 6px;
+      background: var(--card2);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      text-align: center
+    }
+
+    .stat-v {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--accent2)
+    }
+
+    .stat-l {
+      font-size: .62rem;
+      color: var(--dim);
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      margin-top: 2px
+    }
+
+    /* Device info */
+    .info-table {
+      width: 100%;
+      border-collapse: collapse
+    }
+
+    .info-table tr {
+      border-bottom: 1px solid var(--border)
+    }
+
+    .info-table tr:last-child {
+      border-bottom: none
+    }
+
+    .info-table td {
+      padding: 9px 4px;
+      font-size: .82rem
+    }
+
+    .info-table td:first-child {
+      color: var(--dim);
+      width: 48%
+    }
+
+    .info-table td:last-child {
+      font-weight: 600;
+      text-align: right
+    }
+
+    /* Chart */
+    canvas {
+      width: 100%;
+      border-radius: 10px;
+      background: var(--card2);
+      display: block
+    }
+
+    /* Forms */
+    .fg {
+      margin-bottom: 12px
+    }
+
+    .fg label {
+      display: block;
+      font-size: .75rem;
+      color: var(--dim);
+      margin-bottom: 5px;
+      font-weight: 500
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      padding: 9px 13px;
+      border-radius: 10px;
+      border: 1px solid var(--border2);
+      background: var(--card2);
+      color: var(--text);
+      font-size: .84rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color .2s;
+      color-scheme: dark
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--accent)
+    }
+
+    input[type=number]::-webkit-inner-spin-button {
+      opacity: .5
+    }
+
+    input[type=date]::-webkit-calendar-picker-indicator,
+    input[type=time]::-webkit-calendar-picker-indicator {
+      filter: invert(1) brightness(.7);
+      cursor: pointer
+    }
+
+    select {
+      -webkit-appearance: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23697180' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 32px
+    }
+
+    .row {
+      display: flex;
+      gap: 10px
+    }
+
+    .row>* {
+      flex: 1
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 9px 18px;
+      border: none;
+      border-radius: 10px;
+      font-size: .8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+      font-family: inherit;
+      letter-spacing: .3px
+    }
+
+    .btn-p {
+      background: var(--grad);
+      color: #fff;
+      box-shadow: 0 2px 12px rgba(124, 109, 248, .25)
+    }
+
+    .btn-p:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 18px rgba(124, 109, 248, .4)
+    }
+
+    .btn-d {
+      background: rgba(239, 68, 68, .1);
+      color: var(--crit);
+      border: 1px solid rgba(239, 68, 68, .2)
+    }
+
+    .btn-d:hover {
+      background: rgba(239, 68, 68, .18)
+    }
+
+    .btn-o {
+      background: transparent;
+      border: 1px solid var(--border2);
+      color: var(--dim)
+    }
+
+    .btn-o:hover {
+      border-color: var(--accent);
+      color: var(--accent2)
+    }
+
+    .btn-w {
+      width: 100%
+    }
+
+    .btn-sm {
+      padding: 6px 11px;
+      font-size: .72rem
+    }
+
+    /* Lists */
+    .li {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding: 12px 14px;
+      background: var(--card2);
+      border-radius: 12px;
+      margin-bottom: 8px;
+      border: 1px solid var(--border);
+      gap: 10px;
+      transition: border-color .2s
+    }
+
+    .li:hover {
+      border-color: var(--border2)
+    }
+
+    .li-info {
+      flex: 1;
+      min-width: 0
+    }
+
+    .li-name {
+      font-weight: 600;
+      font-size: .88rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis
+    }
+
+    .li-meta {
+      color: var(--dim);
+      font-size: .73rem;
+      margin-top: 3px;
+      line-height: 1.5
+    }
+
+    .li-acts {
+      display: flex;
+      gap: 5px;
+      flex-shrink: 0;
+      align-items: center
+    }
+
+    .empty {
+      text-align: center;
+      color: var(--dim);
+      padding: 24px 10px;
+      font-size: .82rem;
+      border: 1px dashed var(--border);
+      border-radius: 12px
+    }
+
+    /* Badge pills */
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 8px;
+      font-size: .68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px
+    }
+
+    .pill-warn {
+      background: rgba(245, 158, 11, .12);
+      color: var(--warn)
+    }
+
+    .pill-crit {
+      background: rgba(239, 68, 68, .12);
+      color: var(--crit)
+    }
+
+    .pill-safe {
+      background: rgba(16, 185, 129, .12);
+      color: var(--safe)
+    }
+
+    .pill-info {
+      background: rgba(59, 130, 246, .12);
+      color: var(--info)
+    }
+
+    /* Modal */
+    .modal-bg {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .65);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      backdrop-filter: blur(6px)
+    }
+
+    .modal-bg.show {
+      display: flex
+    }
+
+    .modal {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 24px;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 12px 50px rgba(0, 0, 0, .6)
+    }
+
+    .modal h3 {
+      font-size: 1rem;
+      margin-bottom: 16px;
+      font-weight: 700
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 18px
+    }
+
+    /* Threshold bar */
+    .thresh-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: var(--card2);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      margin-bottom: 8px
+    }
+
+    .thresh-row label {
+      font-size: .77rem;
+      color: var(--dim);
+      white-space: nowrap;
+      font-weight: 500;
+      min-width: 110px
+    }
+
+    .thresh-row input {
+      max-width: 80px;
+      text-align: center
+    }
+
+    /* Dashboard sections */
+    .dash-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px
+    }
+
+    .dash-header h3 {
+      font-size: .9rem;
+      font-weight: 700
+    }
+
+    .dash-link {
+      font-size: .72rem;
+      color: var(--accent2);
+      cursor: pointer;
+      font-weight: 500
+    }
+
+    .dash-link:hover {
+      text-decoration: underline
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 5px
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg)
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border2);
+      border-radius: 3px
+    }
+
+    /* Responsive */
+    @media(max-width:600px) {
+      .metric-val {
+        font-size: 2.4rem
+      }
+
+      .container {
+        padding: 14px 10px
+      }
+
+      .stats-row {
+        flex-wrap: wrap
+      }
+
+      .stat-box {
+        min-width: calc(50% - 4px)
+      }
+
+      .nav-top {
+        padding: 12px 14px
+      }
+
+      .row {
+        flex-direction: column
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ── NAVBAR ── -->
+  <nav class="navbar">
+    <div class="nav-top">
+      <div class="brand">
+        <div class="brand-icon">&#128138;</div>
+        <div>
+          <div class="brand-name">Smart Medicine Storage</div>
+          <div class="brand-sub">Cloud Dashboard &mdash; Remote Access</div>
+        </div>
+      </div>
+      <div class="nav-right">
+        <span class="status-pill pill-wait" id="connPill"><span class="sdot"></span><span
+            id="connText">Connecting...</span></span>
+        <span style="font-size:.68rem;color:var(--dim)" id="lastUpdate"></span>
+      </div>
+    </div>
+    <div class="nav-tabs">
+      <button class="tab-btn active" onclick="showPage('dashboard')">&#127968; Dashboard</button>
+      <button class="tab-btn" onclick="showPage('sensors')">&#127777; Sensors</button>
+      <button class="tab-btn" onclick="showPage('medicines')">&#128138; Medicines</button>
+      <button class="tab-btn" onclick="showPage('reminders')">&#128276; Reminders</button>
+    </div>
+  </nav>
+
+  <!-- Device Switcher Bar -->
+  <div class="device-bar">
+    <span class="device-bar-label">&#128247; Node:</span>
+    <div class="device-chip active" id="chip-FRIDGE_001" onclick="switchDevice('FRIDGE_001')">
+      <span class="chip-dot"></span>FRIDGE_001 &mdash; Main Fridge
+    </div>
+    <div class="device-chip" id="chip-FRIDGE_002" onclick="switchDevice('FRIDGE_002')">
+      <span class="chip-dot"></span>FRIDGE_002 &mdash; Secondary Fridge
+    </div>
+    <span style="font-size:.68rem;color:var(--dim);margin-left:4px">&#8212; hub supports more nodes</span>
+  </div>
+
+  <div class="container">
+
+    <!-- Alerts -->
+    <div class="alert-box a-temp" id="alertTemp">&#9888;&#65039; Temperature exceeds safe threshold &mdash; check storage immediately!</div>
+    <div class="alert-box a-hum"  id="alertHum">&#128167; Humidity exceeds safe threshold &mdash; check storage conditions!</div>
+    <div class="alert-box a-off"  id="alertOff"><span id="alertOffText">Device</span> is offline &mdash; no data received for 30+ seconds.</div>
+
+    <!-- ══ DASHBOARD ══ -->
+    <div class="page active" id="pg-dashboard">
+      <div class="grid grid-3" style="margin-bottom:16px">
+
+        <!-- Temperature -->
+        <div class="card">
+          <div class="card-title">&#127777; Temperature</div>
+          <div class="metric-val" id="mTemp" style="color:var(--safe)">--<span class="metric-unit">°C</span></div>
+          <div class="metric-sub">DS18B20 sensor</div>
+          <div class="mbadge b-off" id="mTempB">LOADING</div>
+          <div class="stats-row">
+            <div class="stat-box">
+              <div class="stat-v" id="dMinT">--</div>
+              <div class="stat-l">Min</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-v" id="dAvgT">--</div>
+              <div class="stat-l">Avg</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-v" id="dMaxT">--</div>
+              <div class="stat-l">Max</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Humidity -->
+        <div class="card">
+          <div class="card-title">&#128167; Humidity</div>
+          <div class="metric-val" id="mHum" style="color:var(--info)">--<span class="metric-unit">%</span></div>
+          <div class="metric-sub">DHT22 sensor</div>
+          <div class="mbadge b-off" id="mHumB">LOADING</div>
+          <div class="stats-row">
+            <div class="stat-box">
+              <div class="stat-v" id="dMinH">--</div>
+              <div class="stat-l">Min</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-v" id="dAvgH">--</div>
+              <div class="stat-l">Avg</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-v" id="dMaxH">--</div>
+              <div class="stat-l">Max</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Device info -->
+        <div class="card">
+          <div class="card-title">&#128247; Device Info</div>
+          <table class="info-table">
+            <tr>
+              <td>Node</td>
+              <td id="iId">FRIDGE_001</td>
+            </tr>
+            <tr>
+              <td>Status</td>
+              <td id="iOnline"><span style="color:var(--dim)">—</span></td>
+            </tr>
+            <tr>
+              <td>Last Seen</td>
+              <td id="iSeen">—</td>
+            </tr>
+            <tr>
+              <td>Packets</td>
+              <td id="iSeq">—</td>
+            </tr>
+            <tr>
+              <td>LoRa RSSI</td>
+              <td id="iRssi">—</td>
+            </tr>
+            <tr>
+              <td>Sensor</td>
+              <td id="iStat">—</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- Dashboard summaries -->
+      <div class="grid grid-2">
+        <div class="card">
+          <div class="dash-header">
+            <h3>&#128138; Recent Medicines</h3>
+            <a class="dash-link" onclick="showPage('medicines')">View All &rarr;</a>
+          </div>
+          <div id="dMedList">
+            <div class="empty">No medicines added</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="dash-header">
+            <h3>&#128276; Upcoming Reminders</h3>
+            <a class="dash-link" onclick="showPage('reminders')">View All &rarr;</a>
+          </div>
+          <div id="dRemList">
+            <div class="empty">No reminders set</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SENSORS ══ -->
+    <div class="page" id="pg-sensors">
+      <div class="grid grid-2" style="margin-bottom:16px">
+        <div class="card">
+          <div class="card-title">&#127777; Temperature</div>
+          <div class="metric-val" id="sTempVal" style="color:var(--safe)">--<span class="metric-unit">°C</span></div>
+          <div class="mbadge b-off" id="sTempB">LOADING</div>
+
+          <div style="margin-top:16px">
+            <div class="thresh-row">
+              <label>&#9888; Temp Threshold (°C)</label>
+              <input type="number" id="inThreshT" value="30" min="0" max="60" step="0.5">
+              <button class="btn btn-p btn-sm" onclick="setThresh('temp')">Set</button>
+            </div>
+            <div class="thresh-row">
+              <label>&#128167; Hum Threshold (%)</label>
+              <input type="number" id="inThreshH" value="80" min="0" max="100" step="1">
+              <button class="btn btn-p btn-sm" onclick="setThresh('hum')">Set</button>
+            </div>
+            <div id="threshMsg"
+              style="font-size:.72rem;color:var(--safe);margin-top:6px;min-height:16px;text-align:center"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">&#128167; Humidity</div>
+          <div class="metric-val" id="sHumVal" style="color:var(--info)">--<span class="metric-unit">%</span></div>
+          <div class="mbadge b-off" id="sHumB">LOADING</div>
+
+          <div class="stats-row" style="margin-top:20px">
+            <div class="stat-box">
+              <div class="stat-v" id="sMinT">--</div>
+              <div class="stat-l">Min °C</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-v" id="sAvgT">--</div>
+              <div class="stat-l">Avg °C</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-v" id="sMaxT">--</div>
+              <div class="stat-l">Max °C</div>
+            </div>
+          </div>
+          <div class="stats-row">
+            <div class="stat-box">
+              <div class="stat-v" id="sMinH">--</div>
+              <div class="stat-l">Min %</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-v" id="sAvgH">--</div>
+              <div class="stat-l">Avg %</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-v" id="sMaxH">--</div>
+              <div class="stat-l">Max %</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">&#128200; Temperature History</div>
+          <canvas id="chartTemp" height="200"></canvas>
+          <div style="text-align:center;font-size:.68rem;color:var(--dim);margin-top:6px">Last 30 readings &middot; live
+            from Firebase</div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">&#128167; Humidity History</div>
+          <canvas id="chartHum" height="200"></canvas>
+          <div style="text-align:center;font-size:.68rem;color:var(--dim);margin-top:6px">Last 30 readings &middot; live
+            from Firebase</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ MEDICINES ══ -->
+    <div class="page" id="pg-medicines">
+      <div class="grid grid-2">
+
+        <!-- Add form -->
+        <div class="card">
+          <div class="card-title">&#10133; Add Medicine</div>
+          <div class="fg"><label>Medicine Name *</label><input type="text" id="mName" placeholder="e.g. Amoxicillin">
+          </div>
+          <div class="row">
+            <div class="fg"><label>Quantity *</label><input type="number" id="mQty" placeholder="e.g. 30" min="1"></div>
+            <div class="fg"><label>Type *</label>
+              <select id="mType">
+                <option value="Tablet">Tablet</option>
+                <option value="Capsule">Capsule</option>
+                <option value="Syrup">Syrup</option>
+                <option value="Dose">Dose</option>
+                <option value="Vial">Vial</option>
+                <option value="Injection">Injection</option>
+              </select>
+            </div>
+          </div>
+          <div class="row">
+            <div class="fg"><label>Expiry Date *</label><input type="date" id="mExpiry"></div>
+            <div class="fg"><label>Temp Range (°C)</label><input type="text" id="mTempRange" placeholder="e.g. 2-8">
+            </div>
+          </div>
+          <div class="fg"><label>Company</label><input type="text" id="mCompany" placeholder="e.g. Cipla"></div>
+          <div class="fg"><label>Notes</label><input type="text" id="mNotes" placeholder="e.g. Keep refrigerated"></div>
+          <button class="btn btn-p btn-w" onclick="addMed()">&#10133; Add Medicine</button>
+          <div id="medMsg" style="font-size:.72rem;margin-top:8px;text-align:center;min-height:16px"></div>
+        </div>
+
+        <!-- Medicine list -->
+        <div class="card">
+          <div class="card-title">&#128203; Stored Medicines <span id="medCount"
+              style="font-size:.75rem;color:var(--dim);text-transform:none;letter-spacing:0"></span></div>
+          <div id="medList">
+            <div class="empty">No medicines stored yet</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ REMINDERS ══ -->
+    <div class="page" id="pg-reminders">
+      <div class="grid grid-2">
+
+        <!-- Add form -->
+        <div class="card">
+          <div class="card-title">&#10133; Add Reminder</div>
+          <div class="fg"><label>Label *</label><input type="text" id="rLabel" placeholder="e.g. Take Paracetamol">
+          </div>
+          <div class="row">
+            <div class="fg"><label>Time *</label><input type="time" id="rTime"></div>
+            <div class="fg"><label>Frequency *</label>
+              <select id="rFreq">
+                <option value="Daily">Daily</option>
+                <option value="Twice Daily">Twice Daily</option>
+                <option value="Weekly">Weekly</option>
+                <option value="As Needed">As Needed</option>
+              </select>
+            </div>
+          </div>
+          <div class="fg"><label>Linked Medicine (optional)</label>
+            <select id="rMed">
+              <option value="">-- None --</option>
+            </select>
+          </div>
+          <div class="fg"><label>Notes</label><input type="text" id="rNotes" placeholder="e.g. Take with food"></div>
+          <button class="btn btn-p btn-w" onclick="addRem()">&#128276; Set Reminder</button>
+          <div id="remMsg" style="font-size:.72rem;margin-top:8px;text-align:center;min-height:16px"></div>
+        </div>
+
+        <!-- Reminder list -->
+        <div class="card">
+          <div class="card-title">&#128203; All Reminders <span id="remCount"
+              style="font-size:.75rem;color:var(--dim);text-transform:none;letter-spacing:0"></span></div>
+          <div id="remList">
+            <div class="empty">No reminders set yet</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Edit Medicine Modal -->
+  <div class="modal-bg" id="medModal">
+    <div class="modal">
+      <h3>&#9999;&#65039; Edit Medicine</h3>
+      <input type="hidden" id="emKey">
+      <div class="fg"><label>Name</label><input type="text" id="emName"></div>
+      <div class="row">
+        <div class="fg"><label>Quantity</label><input type="number" id="emQty" min="1"></div>
+        <div class="fg"><label>Type</label>
+          <select id="emType">
+            <option value="Tablet">Tablet</option>
+            <option value="Capsule">Capsule</option>
+            <option value="Syrup">Syrup</option>
+            <option value="Dose">Dose</option>
+            <option value="Vial">Vial</option>
+            <option value="Injection">Injection</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="fg"><label>Expiry</label><input type="date" id="emExpiry"></div>
+        <div class="fg"><label>Temp Range</label><input type="text" id="emTempRange"></div>
+      </div>
+      <div class="fg"><label>Company</label><input type="text" id="emCompany"></div>
+      <div class="fg"><label>Notes</label><input type="text" id="emNotes"></div>
+      <div class="modal-actions">
+        <button class="btn btn-o" onclick="closeModal('medModal')">Cancel</button>
+        <button class="btn btn-p" onclick="saveMed()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Reminder Modal -->
+  <div class="modal-bg" id="remModal">
+    <div class="modal">
+      <h3>&#9999;&#65039; Edit Reminder</h3>
+      <input type="hidden" id="erKey">
+      <div class="fg"><label>Label</label><input type="text" id="erLabel"></div>
+      <div class="row">
+        <div class="fg"><label>Time</label><input type="time" id="erTime"></div>
+        <div class="fg"><label>Frequency</label>
+          <select id="erFreq">
+            <option value="Daily">Daily</option>
+            <option value="Twice Daily">Twice Daily</option>
+            <option value="Weekly">Weekly</option>
+            <option value="As Needed">As Needed</option>
+          </select>
+        </div>
+      </div>
+      <div class="fg"><label>Notes</label><input type="text" id="erNotes"></div>
+      <div class="modal-actions">
+        <button class="btn btn-o" onclick="closeModal('remModal')">Cancel</button>
+        <button class="btn btn-p" onclick="saveRem()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ════════════════════════════════════════════
+       FIREBASE CONFIG — pre-configured
+    ════════════════════════════════════════════ */
+    var FB_CONFIG = {
+      apiKey: "AIzaSyD15U__O81lXU59onzIFH6_zANiHVZsK70",
+      authDomain: "iot-project-1dd40.firebaseapp.com",
+      databaseURL: "https://iot-project-1dd40-default-rtdb.firebaseio.com",
+      projectId: "iot-project-1dd40",
+      storageBucket: "iot-project-1dd40.firebasestorage.app",
+      messagingSenderId: "566365731",
+      appId: "1:566365731:web:55811f3c876e0e9e67ab96"
+    };
+
+    var fbApp = firebase.initializeApp(FB_CONFIG);
+    var db = firebase.database(fbApp);
+
+    /* ════════════════════════════════════════════
+       STATE
+    ════════════════════════════════════════════ */
+    // Known fridge nodes — FRIDGE_001 is real hardware, FRIDGE_002 demonstrates multi-node capability
+    var DEVICES = {
+      'FRIDGE_001': { label: 'Main Fridge',      online: false },
+      'FRIDGE_002': { label: 'Secondary Fridge', online: false }
+    };
+    var selectedDevice = 'FRIDGE_001';
+    var deviceListeners = {};   // active Firebase listeners keyed by device ID
+
+    var tempHistory = [], humHistory = [];
+    var lastSeq = null, seenAt = 0, lastDev = null;   // freshness tracking (see updateSensorUI)
+    var threshT = 30, threshH = 80;
+    var meds = {}, rems = {};   // keyed by Firebase push ID, scoped to selectedDevice
+
+    /* ════════════════════════════════════════════
+       NAVIGATION
+    ════════════════════════════════════════════ */
+    function showPage(id) {
+      document.querySelectorAll('.page').forEach(function (p) { p.classList.remove('active'); });
+      document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active'); });
+      document.getElementById('pg-' + id).classList.add('active');
+      var tabs = ['dashboard', 'sensors', 'medicines', 'reminders'];
+      tabs.forEach(function (t, i) { if (t === id) document.querySelectorAll('.tab-btn')[i].classList.add('active'); });
+      if (id === 'sensors' && tempHistory.length > 1) { drawChart('chartTemp', tempHistory, '#a29bfe', '°C', threshT); drawChart('chartHum', humHistory, '#56b4d3', '%', threshH); }
+      if (id === 'dashboard') renderDashSummaries();
+    }
+
+    /* ════════════════════════════════════════════
+       DEVICE SWITCHER
+    ════════════════════════════════════════════ */
+    function switchDevice(id) {
+      if (id === selectedDevice) return;
+      selectedDevice = id;
+
+      // Update chips
+      Object.keys(DEVICES).forEach(function(did){
+        var chip = document.getElementById('chip-'+did);
+        if(chip) chip.classList.toggle('active', did === id);
+      });
+
+      // Reset sensor display
+      tempHistory = []; humHistory = [];
+      lastSeq = null; seenAt = 0; lastDev = null;
+      meds = {}; rems = {};
+      setMetric('mTemp',   '--<span class="metric-unit">°C</span>', 'var(--dim)');
+      setMetric('sTempVal','--<span class="metric-unit">°C</span>', 'var(--dim)');
+      setMetric('mHum',    '--<span class="metric-unit">%</span>',  'var(--dim)');
+      setMetric('sHumVal', '--<span class="metric-unit">%</span>',  'var(--dim)');
+      setBadge('mTempB','LOADING','b-off'); setBadge('sTempB','LOADING','b-off');
+      setBadge('mHumB', 'LOADING','b-off'); setBadge('sHumB', 'LOADING','b-off');
+      showAlert('alertTemp',false); showAlert('alertHum',false); showAlert('alertOff',false);
+
+      // Re-attach listeners for new device
+      attachDeviceListeners(id);
+
+      // Update page sub-title
+      setPill('pill-wait', id + ' — Connecting...');
+    }
+
+    /* ════════════════════════════════════════════
+       FIREBASE LISTENERS
+    ════════════════════════════════════════════ */
+    function attachDeviceListeners(devId) {
+      if(deviceListeners.sensor)   { deviceListeners.sensor.off();   }
+      if(deviceListeners.medicines){ deviceListeners.medicines.off();}
+      if(deviceListeners.reminders){ deviceListeners.reminders.off();}
+
+      // Live sensor data
+      var sensorRef = db.ref('/devices/'+devId);
+      sensorRef.on('value', function(snap){
+        var d = snap.val();
+        if(!d){
+          setPill('pill-offline', devId+' — Offline');
+          updateChipStatus(devId, 'offline');
+          return;
+        }
+        if (devId !== selectedDevice) return;
+        el('lastUpdate').textContent = new Date().toLocaleTimeString();
+        lastDev = d;
+        updateSensorUI(d, devId);
+      });
+      deviceListeners.sensor = sensorRef;
+
+      // Medicines (per-device path)
+      var medsRef = db.ref('/medicines/'+devId);
+      medsRef.on('value', function(snap){
+        meds = snap.val() || {};
+        renderMeds(); updateMedDropdown(); renderDashSummaries();
+      });
+      deviceListeners.medicines = medsRef;
+
+      // Reminders (per-device path)
+      var remsRef = db.ref('/reminders/'+devId);
+      remsRef.on('value', function(snap){
+        rems = snap.val() || {};
+        renderRems(); renderDashSummaries();
+      });
+      deviceListeners.reminders = remsRef;
+
+      // History
+      db.ref('/history/'+devId).orderByKey().limitToLast(60).once('value', function(snap){
+        if (devId !== selectedDevice) return;   // user switched node while this was loading
+        var hist = snap.val(); if(!hist) return;
+        var entries = Object.keys(hist).sort();
+        entries.forEach(function(key){
+          var e = hist[key];
+          if(e && e.t > -900) tempHistory.push(parseFloat(parseFloat(e.t).toFixed(1)));
+          if(e && e.h > -900) humHistory.push(parseFloat(parseFloat(e.h).toFixed(1)));
+        });
+        if(tempHistory.length>30) tempHistory=tempHistory.slice(-30);
+        if(humHistory.length >30) humHistory =humHistory.slice(-30);
+        updateStats();
+        if(el('pg-sensors').classList.contains('active')){
+          if(tempHistory.length>1) drawChart('chartTemp',tempHistory,'#a29bfe','°C',threshT);
+          if(humHistory.length >1) drawChart('chartHum', humHistory, '#56b4d3','%', threshH);
+        }
+      });
+    }
+
+    function updateChipStatus(devId, state) {
+      var chip = document.getElementById('chip-'+devId);
+      if(!chip) return;
+      chip.classList.remove('live','warn');
+      if(state==='live')   chip.classList.add('live');
+      if(state==='offline') chip.classList.add('warn');
+    }
+
+    // Start with FRIDGE_001
+    attachDeviceListeners('FRIDGE_001');
+
+    // Also listen to ALL devices in background to update chip status dots
+    Object.keys(DEVICES).forEach(function(devId){
+      db.ref('/devices/'+devId+'/online').on('value', function(snap){
+        var online = snap.val();
+        DEVICES[devId].online = online === true || online === 'true';
+        if(devId !== selectedDevice)
+          updateChipStatus(devId, DEVICES[devId].online ? 'live' : 'offline');
+      });
+    });
+
+    setPill('pill-wait', 'Connecting...');
+
+    /* ════════════════════════════════════════════
+       SENSOR UI UPDATE
+    ════════════════════════════════════════════ */
+    function updateSensorUI(d) {
+      // The hub only writes to Firebase when a packet arrives, so a silent fridge would leave
+      // "online:true" in the database forever. Judge freshness by when the last write happened.
+      var isNew = (d.sequence === undefined) || d.sequence !== lastSeq;
+      if (d.lastSeenTs) seenAt = d.lastSeenTs;          // server timestamp written by hub v3
+      else if (isNew) seenAt = Date.now();              // fallback for older hub firmware
+      var online = (d.online === true || d.online === 'true') && (Date.now() - seenAt < 35000);
+      var tempOK = parseFloat(d.temperature) > -900;
+      var humOK = parseFloat(d.humidity) > -900;
+      threshT = parseFloat(d.tempThreshold) || 30;
+      threshH = parseFloat(d.humThreshold) || 80;
+
+      setPill(online ? 'pill-live' : 'pill-offline', online ? selectedDevice+' Live' : selectedDevice+' Offline');
+      updateChipStatus(selectedDevice, online ? 'live' : 'offline');
+      el('alertOffText').textContent = selectedDevice;
+
+      // Temperature
+      if (tempOK && online) {
+        var t = parseFloat(parseFloat(d.temperature).toFixed(1));
+        if (isNew) { tempHistory.push(t); if (tempHistory.length > 30) tempHistory.shift(); }
+        var tc = t > threshT ? 'var(--crit)' : t > threshT - 5 ? 'var(--warn)' : 'var(--safe)';
+        var tb = t > threshT ? 'b-crit' : t > threshT - 5 ? 'b-warn' : 'b-safe';
+        var tl = t > threshT ? 'CRITICAL' : t > threshT - 5 ? 'WARNING' : 'SAFE';
+        setMetric('mTemp', t + '<span class="metric-unit">°C</span>', tc);
+        setMetric('sTempVal', t + '<span class="metric-unit">°C</span>', tc);
+        setBadge('mTempB', tl, tb); setBadge('sTempB', tl, tb);
+      } else {
+        setMetric('mTemp', '--<span class="metric-unit">°C</span>', 'var(--dim)');
+        setMetric('sTempVal', '--<span class="metric-unit">°C</span>', 'var(--dim)');
+        setBadge('mTempB', 'NO DATA', 'b-off'); setBadge('sTempB', 'NO DATA', 'b-off');
+      }
+
+      // Humidity
+      if (humOK && online) {
+        var h = parseFloat(parseFloat(d.humidity).toFixed(1));
+        if (isNew) { humHistory.push(h); if (humHistory.length > 30) humHistory.shift(); }
+        var hc = h > threshH ? 'var(--crit)' : h > threshH - 10 ? 'var(--warn)' : 'var(--info)';
+        var hb = h > threshH ? 'b-crit' : h > threshH - 10 ? 'b-warn' : 'b-safe';
+        var hl = h > threshH ? 'HIGH' : h > threshH - 10 ? 'CAUTION' : 'NORMAL';
+        setMetric('mHum', h + '<span class="metric-unit">%</span>', hc);
+        setMetric('sHumVal', h + '<span class="metric-unit">%</span>', hc);
+        setBadge('mHumB', hl, hb); setBadge('sHumB', hl, hb);
+      } else {
+        setMetric('mHum', '--<span class="metric-unit">%</span>', 'var(--dim)');
+        setMetric('sHumVal', '--<span class="metric-unit">%</span>', 'var(--dim)');
+        setBadge('mHumB', 'NO DATA', 'b-off'); setBadge('sHumB', 'NO DATA', 'b-off');
+      }
+
+      lastSeq = d.sequence;
+
+      // Stats
+      updateStats();
+
+      // Device info
+      var sc = online ? 'var(--safe)' : 'var(--crit)';
+      el('iOnline').innerHTML = '<span style="color:' + sc + ';font-weight:700">' + (online ? 'ONLINE' : 'OFFLINE') + '</span>';
+      el('iSeen').textContent = seenAt ? timeSince(seenAt) : '—';
+      el('iSeq').textContent = d.sequence || '—';
+      el('iRssi').textContent = d.rssi ? d.rssi + ' dBm' : '—';
+      el('iStat').textContent = d.sensorStatus || '—';
+      // don't overwrite what the user is typing
+      if (document.activeElement !== el('inThreshT')) el('inThreshT').value = threshT;
+      if (document.activeElement !== el('inThreshH')) el('inThreshH').value = threshH;
+
+      // Alerts
+      showAlert('alertTemp', !!d.tempAlert && online);
+      showAlert('alertHum', !!d.humAlert && online);
+      showAlert('alertOff', !online && !!d.lastSeen);
+
+      // Redraw charts if on sensor page
+      if (el('pg-sensors').classList.contains('active') && tempHistory.length > 1) {
+        drawChart('chartTemp', tempHistory, '#a29bfe', '°C', threshT);
+        drawChart('chartHum', humHistory, '#56b4d3', '%', threshH);
+      }
+    }
+
+    function updateStats() {
+      function s(arr, idMin, idAvg, idMax) {
+        if (!arr.length) return;
+        var mn = Math.min.apply(null, arr), mx = Math.max.apply(null, arr);
+        var av = arr.reduce(function (a, b) { return a + b }, 0) / arr.length;
+        el(idMin).textContent = mn.toFixed(1); el(idAvg).textContent = av.toFixed(1); el(idMax).textContent = mx.toFixed(1);
+      }
+      s(tempHistory, 'dMinT', 'dAvgT', 'dMaxT');
+      s(humHistory, 'dMinH', 'dAvgH', 'dMaxH');
+      s(tempHistory, 'sMinT', 'sAvgT', 'sMaxT');
+      s(humHistory, 'sMinH', 'sAvgH', 'sMaxH');
+    }
+
+    /* ════════════════════════════════════════════
+       THRESHOLDS
+    ════════════════════════════════════════════ */
+    function setThresh(type) {
+      var val = parseFloat(el(type === 'temp' ? 'inThreshT' : 'inThreshH').value);
+      if (isNaN(val)) { alert('Enter valid number'); return; }
+      var path = '/config/' + selectedDevice + (type === 'temp' ? '/tempThreshold' : '/humThreshold');
+      db.ref(path).set(val).then(function () {
+        flash('threshMsg', (type === 'temp' ? 'Temp' : 'Humidity') + ' threshold → ' + val + (type === 'temp' ? '°C' : '%') + ' sent — hub applies it on the next packet ✓', 'var(--safe)');
+      }).catch(function (e) { flash('threshMsg', 'Error: ' + e.message, 'var(--crit)'); });
+    }
+
+    /* ════════════════════════════════════════════
+       MEDICINES — Firebase CRUD
+    ════════════════════════════════════════════ */
+    function addMed() {
+      var n = el('mName').value.trim(), q = parseInt(el('mQty').value),
+        tp = el('mType').value, ex = el('mExpiry').value,
+        tr = el('mTempRange').value.trim(), co = el('mCompany').value.trim(),
+        no = el('mNotes').value.trim();
+      if (!n) { alert('Enter medicine name'); return; }
+      if (!q || q < 1) { alert('Enter valid quantity'); return; }
+      if (!ex) { alert('Enter expiry date'); return; }
+
+      var med = { name: n, qty: q, type: tp, expiry: ex, company: co, notes: no, tempRange: tr, added: Date.now() };
+
+      db.ref('/medicines/'+selectedDevice).push(med).then(function () {
+        el('mName').value = ''; el('mQty').value = ''; el('mExpiry').value = '';
+        el('mTempRange').value = ''; el('mCompany').value = ''; el('mNotes').value = '';
+        flash('medMsg', 'Medicine added ✓', 'var(--safe)');
+      }).catch(function (e) { flash('medMsg', 'Error: ' + e.message, 'var(--crit)'); });
+    }
+
+    function editMed(key) {
+      var m = meds[key]; if (!m) return;
+      el('emKey').value = key; el('emName').value = m.name; el('emQty').value = m.qty;
+      el('emType').value = m.type; el('emExpiry').value = m.expiry;
+      el('emTempRange').value = m.tempRange || ''; el('emCompany').value = m.company || '';
+      el('emNotes').value = m.notes || '';
+      el('medModal').classList.add('show');
+    }
+
+    function saveMed() {
+      var key = el('emKey').value;
+      db.ref('/medicines/'+selectedDevice+'/' + key).update({
+        name: el('emName').value.trim(), qty: parseInt(el('emQty').value),
+        type: el('emType').value, expiry: el('emExpiry').value,
+        tempRange: el('emTempRange').value.trim(), company: el('emCompany').value.trim(),
+        notes: el('emNotes').value.trim()
+      }).then(function () { closeModal('medModal'); }).catch(function (e) { alert(e.message); });
+    }
+
+    function delMed(key) {
+      if (!confirm('Delete this medicine?')) return;
+      db.ref('/medicines/'+selectedDevice+'/' + key).remove();
+    }
+
+    function renderMeds() {
+      var keys = Object.keys(meds);
+      el('medCount').textContent = keys.length ? '(' + keys.length + ')' : '';
+      if (!keys.length) { el('medList').innerHTML = '<div class="empty">No medicines stored yet</div>'; return; }
+      var html = '';
+      keys.sort(function (a, b) { return (meds[a].name || '').localeCompare(meds[b].name || ''); });
+      keys.forEach(function (key) {
+        var m = meds[key];
+        var expired = m.expiry && new Date(m.expiry) < new Date();
+        var expSoon = m.expiry && !expired && (new Date(m.expiry) - new Date()) < 30 * 24 * 3600 * 1000;
+        html += '<div class="li"><div class="li-info">';
+        html += '<div class="li-name">' + esc(m.name) + '</div>';
+        html += '<div class="li-meta">' + esc(m.qty) + ' ' + esc(m.type);
+        if (m.company) html += ' &middot; ' + esc(m.company);
+        if (m.tempRange) html += ' &middot; &#127777; ' + esc(m.tempRange) + '°C';
+        html += ' &middot; Exp: ' + esc(m.expiry);
+        if (expired) html += ' <span class="pill pill-crit">EXPIRED</span>';
+        else if (expSoon) html += ' <span class="pill pill-warn">EXPIRING SOON</span>';
+        if (m.notes) html += '<br>' + esc(m.notes);
+        html += '</div></div>';
+        html += '<div class="li-acts">';
+        html += '<button class="btn btn-o btn-sm" onclick="editMed(\'' + sk(key) + '\')">&#9999;</button>';
+        html += '<button class="btn btn-d btn-sm" onclick="delMed(\'' + sk(key) + '\')">&times;</button>';
+        html += '</div></div>';
+      });
+      el('medList').innerHTML = html;
+    }
+
+    function updateMedDropdown() {
+      var sel = el('rMed');
+      var cur = sel.value;
+      sel.innerHTML = '<option value="">-- None --</option>';
+      Object.keys(meds).forEach(function (key) {
+        var o = document.createElement('option');
+        o.value = key; o.textContent = meds[key].name;
+        sel.appendChild(o);
+      });
+      sel.value = cur;
+    }
+
+    /* ════════════════════════════════════════════
+       REMINDERS — Firebase CRUD
+    ════════════════════════════════════════════ */
+    function addRem() {
+      var l = el('rLabel').value.trim(), t = el('rTime').value,
+        f = el('rFreq').value, m = el('rMed').value, n = el('rNotes').value.trim();
+      if (!l) { alert('Enter label'); return; }
+      if (!t) { alert('Select time'); return; }
+
+      var medName = m && meds[m] ? meds[m].name : '';
+      var rem = { label: l, time: t, freq: f, medKey: m, medName: medName, notes: n, added: Date.now() };
+
+      db.ref('/reminders/'+selectedDevice).push(rem).then(function () {
+        el('rLabel').value = ''; el('rTime').value = ''; el('rNotes').value = ''; el('rMed').value = '';
+        flash('remMsg', 'Reminder set ✓', 'var(--safe)');
+      }).catch(function (e) { flash('remMsg', 'Error: ' + e.message, 'var(--crit)'); });
+    }
+
+    function editRem(key) {
+      var r = rems[key]; if (!r) return;
+      el('erKey').value = key; el('erLabel').value = r.label;
+      el('erTime').value = r.time; el('erFreq').value = r.freq;
+      el('erNotes').value = r.notes || '';
+      el('remModal').classList.add('show');
+    }
+
+    function saveRem() {
+      var key = el('erKey').value;
+      db.ref('/reminders/'+selectedDevice+'/' + key).update({
+        label: el('erLabel').value.trim(), time: el('erTime').value,
+        freq: el('erFreq').value, notes: el('erNotes').value.trim()
+      }).then(function () { closeModal('remModal'); }).catch(function (e) { alert(e.message); });
+    }
+
+    function delRem(key) {
+      if (!confirm('Delete this reminder?')) return;
+      db.ref('/reminders/'+selectedDevice+'/' + key).remove();
+    }
+
+    function renderRems() {
+      var keys = Object.keys(rems);
+      el('remCount').textContent = keys.length ? '(' + keys.length + ')' : '';
+      if (!keys.length) { el('remList').innerHTML = '<div class="empty">No reminders set yet</div>'; return; }
+      var html = '';
+      keys.sort(function (a, b) { return (rems[a].time || '').localeCompare(rems[b].time || ''); });
+      keys.forEach(function (key) {
+        var r = rems[key];
+        var freqColor = { 'Daily': 'pill-safe', 'Twice Daily': 'pill-info', 'Weekly': 'pill-warn', 'As Needed': 'pill-info' }[r.freq] || 'pill-info';
+        html += '<div class="li"><div class="li-info">';
+        html += '<div class="li-name">&#128276; ' + esc(r.label) + '</div>';
+        html += '<div class="li-meta">&#128336; ' + esc(r.time) + ' &middot; <span class="pill ' + freqColor + '">' + esc(r.freq) + '</span>';
+        if (r.medName) html += ' &middot; &#128138; ' + esc(r.medName);
+        if (r.notes) html += '<br>' + esc(r.notes);
+        html += '</div></div>';
+        html += '<div class="li-acts">';
+        html += '<button class="btn btn-o btn-sm" onclick="editRem(\'' + sk(key) + '\')">&#9999;</button>';
+        html += '<button class="btn btn-d btn-sm" onclick="delRem(\'' + sk(key) + '\')">&times;</button>';
+        html += '</div></div>';
+      });
+      el('remList').innerHTML = html;
+    }
+
+    /* ════════════════════════════════════════════
+       DASHBOARD SUMMARIES
+    ════════════════════════════════════════════ */
+    function renderDashSummaries() {
+      // Medicines — 3 most recently added
+      var mKeys = Object.keys(meds).sort(function (a, b) { return (meds[b].added || 0) - (meds[a].added || 0); });
+      if (!mKeys.length) { el('dMedList').innerHTML = '<div class="empty">No medicines added</div>'; }
+      else {
+        var h = ''; mKeys.slice(0, 3).forEach(function (k) {
+          var m = meds[k];
+          var exp = m.expiry && new Date(m.expiry) < new Date();
+          h += '<div class="li" style="padding:9px 12px"><div class="li-info">';
+          h += '<div class="li-name" style="font-size:.84rem">' + esc(m.name) + '</div>';
+          h += '<div class="li-meta">' + esc(m.qty) + ' ' + esc(m.type) + (m.company ? ' &middot; ' + esc(m.company) : '');
+          if (exp) h += ' <span class="pill pill-crit">EXPIRED</span>';
+          h += '</div></div></div>';
+        });
+        if (mKeys.length > 3) h += '<div style="text-align:center;font-size:.72rem;color:var(--dim);margin-top:4px">+' + (mKeys.length - 3) + ' more</div>';
+        el('dMedList').innerHTML = h;
+      }
+
+      // Reminders — sorted by time
+      var rKeys = Object.keys(rems).sort(function (a, b) { return (rems[a].time || '').localeCompare(rems[b].time || ''); });
+      if (!rKeys.length) { el('dRemList').innerHTML = '<div class="empty">No reminders set</div>'; }
+      else {
+        var h = ''; rKeys.slice(0, 3).forEach(function (k) {
+          var r = rems[k];
+          h += '<div class="li" style="padding:9px 12px"><div class="li-info">';
+          h += '<div class="li-name" style="font-size:.84rem">' + esc(r.label) + '</div>';
+          h += '<div class="li-meta">' + esc(r.time) + ' &middot; ' + esc(r.freq) + (r.medName ? ' &middot; ' + esc(r.medName) : '') + '</div>';
+          h += '</div></div>';
+        });
+        if (rKeys.length > 3) h += '<div style="text-align:center;font-size:.72rem;color:var(--dim);margin-top:4px">+' + (rKeys.length - 3) + ' more</div>';
+        el('dRemList').innerHTML = h;
+      }
+    }
+
+    /* ════════════════════════════════════════════
+       CHART
+    ════════════════════════════════════════════ */
+    function drawChart(id, data, color, unit, refVal) {
+      var c = el(id); if (!c || data.length < 2) return;
+      var ctx = c.getContext('2d');
+      var dpr = window.devicePixelRatio || 1;
+      var rect = c.getBoundingClientRect();
+      c.width = rect.width * dpr; c.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+      var W = rect.width, H = rect.height, p = { t: 20, r: 10, b: 28, l: 42 };
+      var gw = W - p.l - p.r, gh = H - p.t - p.b;
+      ctx.clearRect(0, 0, W, H);
+      var mn = Math.min.apply(null, data) - 2, mx = Math.max.apply(null, data) + 2;
+      if (mx - mn < 5) { mn -= 2; mx += 2; }
+
+      // Grid
+      ctx.strokeStyle = '#1e2532'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+      for (var i = 0; i <= 4; i++) {
+        var y = p.t + gh - (i / 4) * gh;
+        ctx.beginPath(); ctx.moveTo(p.l, y); ctx.lineTo(p.l + gw, y); ctx.stroke();
+        ctx.fillStyle = '#4b5563'; ctx.font = '10px Inter,sans-serif'; ctx.textAlign = 'right';
+        ctx.fillText((mn + (mx - mn) * (i / 4)).toFixed(1) + unit, p.l - 4, y + 3);
+      }
+      ctx.setLineDash([]);
+
+      // Threshold line
+      if (refVal !== undefined) {
+        var ry = p.t + gh - ((refVal - mn) / (mx - mn)) * gh;
+        if (ry > p.t && ry < p.t + gh) {
+          ctx.strokeStyle = 'rgba(239,68,68,.5)'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
+          ctx.beginPath(); ctx.moveTo(p.l, ry); ctx.lineTo(p.l + gw, ry); ctx.stroke();
+          ctx.setLineDash([]); ctx.fillStyle = 'rgba(239,68,68,.8)'; ctx.font = '9px Inter,sans-serif'; ctx.textAlign = 'left';
+          ctx.fillText('Threshold', p.l + 4, ry - 4);
+        }
+      }
+      ctx.setLineDash([]);
+
+      var pts = data.map(function (v, i) { return { x: p.l + (i / (data.length - 1)) * gw, y: p.t + gh - ((v - mn) / (mx - mn)) * gh }; });
+
+      // Fill
+      var g = ctx.createLinearGradient(0, p.t, 0, p.t + gh);
+      var rgb = color === '#a29bfe' ? '162,155,254' : '86,180,211';
+      g.addColorStop(0, 'rgba(' + rgb + ',.18)'); g.addColorStop(1, 'rgba(' + rgb + ',0)');
+      ctx.beginPath(); ctx.moveTo(pts[0].x, p.t + gh);
+      pts.forEach(function (p) { ctx.lineTo(p.x, p.y); });
+      ctx.lineTo(pts[pts.length - 1].x, p.t + gh); ctx.closePath(); ctx.fillStyle = g; ctx.fill();
+
+      // Line
+      ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+      for (var i = 1; i < pts.length; i++) { var cx = (pts[i - 1].x + pts[i].x) / 2; ctx.bezierCurveTo(cx, pts[i - 1].y, cx, pts[i].y, pts[i].x, pts[i].y); }
+      ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.stroke();
+
+      // Dots
+      pts.forEach(function (p) {
+        ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+        ctx.fillStyle = color; ctx.fill(); ctx.strokeStyle = '#070a10'; ctx.lineWidth = 1.5; ctx.stroke();
+      });
+    }
+
+    /* ════════════════════════════════════════════
+       HELPERS
+    ════════════════════════════════════════════ */
+    function el(id) { return document.getElementById(id); }
+    function sk(k) { return String(k).replace(/[^A-Za-z0-9_-]/g, ''); }   // safe key for onclick attributes
+    function esc(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+    function setPill(cls, txt) {
+      var p = el('connPill'); if (!p) return;
+      p.className = 'status-pill ' + cls; el('connText').textContent = txt;
+    }
+    function setMetric(id, html, color) {
+      var e = el(id); if (!e) return; e.innerHTML = html; e.style.color = color;
+    }
+    function setBadge(id, text, cls) {
+      var e = el(id); if (!e) return; e.textContent = text; e.className = 'mbadge ' + cls;
+    }
+    function showAlert(id, show) {
+      var e = el(id); if (!e) return;
+      if (show) e.classList.add('show'); else e.classList.remove('show');
+    }
+    function flash(id, msg, color) {
+      var e = el(id); if (!e) return;
+      e.textContent = msg; e.style.color = color;
+      setTimeout(function () { e.textContent = ''; }, 4000);
+    }
+    function timeSince(ms) {
+      var s = Math.floor((Date.now() - ms) / 1000);
+      if (s < 5) return 'just now';
+      if (s < 60) return s + 's ago';
+      if (s < 3600) return Math.floor(s / 60) + 'm ago';
+      return Math.floor(s / 3600) + 'h ago';
+    }
+    function closeModal(id) { el(id).classList.remove('show'); }
+
+    // Re-evaluate freshness every 5 s so a silent fridge flips to OFFLINE by itself
+    setInterval(function () { if (lastDev) updateSensorUI(lastDev); }, 5000);
+
+    window.addEventListener('resize', function () {
+      if (el('pg-sensors').classList.contains('active')) {
+        if (tempHistory.length > 1) drawChart('chartTemp', tempHistory, '#a29bfe', '°C', threshT);
+        if (humHistory.length > 1) drawChart('chartHum', humHistory, '#56b4d3', '%', threshH);
+      }
+    });
+  </script>
+</body>
+
+</html>
